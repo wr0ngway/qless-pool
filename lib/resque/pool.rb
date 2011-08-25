@@ -296,10 +296,10 @@ module Resque
           
           total_usage += memory_usage(child_pid) if child_pid
           
-          if total_usage > 250
+          if total_usage > 500
             log "Terminating worker #{pid} for using #{total_usage}MB memory"
             stop_worker(pid)
-          elsif total_usage > 200
+          elsif total_usage > 250
             log "Gracefully shutting down worker #{pid} for using #{total_usage}MB memory"
             stop_worker(pid, :QUIT)
           end
