@@ -269,24 +269,27 @@ module Resque
 
     def memory_usage(pid)
       smaps_filename = "/proc/#{pid}/smaps"
-          
-      #Grab actual memory usage from proc in MB
-      begin
-        mem_usage = `
+
+      cmd = <<-EOF
           if [ -f #{smaps_filename} ];
             then
               grep Private_Dirty #{smaps_filename} | awk '{s+=$2} END {printf("%d", s/1000)}'
             else echo "0"
           fi
-        `.to_i
-        rescue Errno::EINTR
-          retry
-        end
+      EOF
+
+      #Grab actual memory usage from proc in MB
+      begin
+        stdout_str, status = Open3.capture2(cmd)
+        stdout_str.to_i
+      rescue Errno::EINTR
+        retry
+      end
     end
     
     def process_exists?(pid)
       begin
-        ps_line = `ps -p #{pid} --no-header`
+        ps_line, status = Open3.capture2("ps -p #{pid} --no-header")
       rescue Errno::EINTR
         retry
       end
@@ -298,7 +301,7 @@ module Resque
       #look for workers that didn't terminate
       @term_workers.delete_if {|pid| !process_exists?(pid)}
       #send the rest a -9
-      @term_workers.each {|pid| `kill -9 #{pid}`}
+      @term_workers.each {|pid| Open3.pipeline("kill -9 #{pid}")}
     end
 
     def add_killed_worker(pid)
@@ -334,7 +337,11 @@ module Resque
 
     def hostname
       begin
-        @hostname ||= `hostname`.strip
+        unless @hostname
+          @hostname, status = Open3.capture2("hostname")
+          @hostname.strip!
+        end
+        @hostname
       rescue Errno::EINTR
         retry
       end
@@ -365,7 +372,8 @@ module Resque
 
     def find_child_pid(parent_pid)
       begin
-        p = `ps --ppid #{parent_pid} -o pid --no-header`.to_i
+        stdout, error = Open3.capture2("ps --ppid #{parent_pid} -o pid --no-header")
+        p = stdout.to_i
         p == 0 ? nil : p
       rescue Errno::EINTR
         retry
@@ -374,22 +382,30 @@ module Resque
 
     def orphaned_worker_count
       if @last_orphaned_check.nil? || @last_orphaned_check < Time.now - 60
+
         if @orphaned_pids.nil?
-            printf_line = '%d %d\n'
+          printf_line = '%d %d\n'
+          cmds = ['ps -Af', 'grep resque', 'grep -v grep', 'grep -v resque-web', 'grep -v master', "awk '{printf(\"#{printf_line}\", $2, $3)}'"]
+
           begin
-            pids_with_parents = `ps -Af | grep resque | grep -v grep | grep -v resque-web | grep -v master | awk '{printf("%d %d\\n", $2, $3)}'`.split("\n")
+            pids_with_parents = []
+            Open3.pipeline_r(*cmds) do |stdout, wait_threads|
+              pids_with_parents << stdout.readline while !stdout.eof?
+            end
           rescue Errno::EINTR
             retry
           end
+
           pids = pids_with_parents.collect {|x| x.split[0].to_i}
           parents = pids_with_parents.collect {|x| x.split[1].to_i}
           pids.delete_if {|x| parents.include?(x)}
           pids.delete_if {|x| all_pids.include?(x)}
           @orphaned_pids = pids
+
         elsif @orphaned_pids.size > 0
           @orphaned_pids.delete_if do |pid|
             begin
-              ps_out = `ps --no-heading p #{pid}`
+              ps_out, status = Open3.capture2("ps --no-heading p #{pid}")
               ps_out.nil? || ps_out.strip == ''
             rescue Errno::EINTR
               retry
