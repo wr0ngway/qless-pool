@@ -209,7 +209,7 @@ module Resque
         break if handle_sig_queue! == :break
         if sig_queue.empty?
           master_sleep
-          #monitor_memory_usage
+          monitor_memory_usage
           maintain_worker_count
         end
         procline("managing #{all_pids.inspect}")
