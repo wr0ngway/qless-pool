@@ -268,23 +268,24 @@ module Resque
     end
 
     def memory_usage(pid)
-      smaps_filename = "/proc/#{pid}/smaps"
-
-      cmd = <<-EOF
-          if [ -f #{smaps_filename} ];
-            then
-              grep Private_Dirty #{smaps_filename} | awk '{s+=$2} END {printf("%d", s/1000)}'
-            else echo "0"
-          fi
-      EOF
-
-      #Grab actual memory usage from proc in MB
-      begin
-        stdout_str, status = Open3.capture2(cmd)
-        stdout_str.to_i
-      rescue Errno::EINTR
-        retry
-      end
+#      smaps_filename = "/proc/#{pid}/smaps"
+#
+#      cmd = <<-EOF
+#          if [ -f #{smaps_filename} ];
+#            then
+#              grep Private_Dirty #{smaps_filename} | awk '{s+=$2} END {printf("%d", s/1000)}'
+#            else echo "0"
+#          fi
+#      EOF
+#
+#      #Grab actual memory usage from proc in MB
+#      begin
+#        stdout_str, status = Open3.capture2(cmd)
+#        stdout_str.to_i
+#      rescue Errno::EINTR
+#        retry
+#      end
+      return 0
     end
     
     def process_exists?(pid)
