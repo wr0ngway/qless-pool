@@ -293,16 +293,27 @@ module Resque
       end
     end
 
-    def worker_delta_for(queues)
+    def orphaned_count
+      if @orphaned_checked_time && @orphaned_checked_time > Time.now.to_i - 60
+        return @orphaned_count
+      end
+
       machine_hostname = Socket.gethostname
       workers_on_queues = Resque.workers.collect(&:to_s).find_all do |key|
         hostname, pid, queue = key.split(':')
-        machine_hostname == hostname && queue == queues
+        machine_hostname == hostname #&& queue == queues
       end
 
-      delta = config.fetch(queues, 0) - workers_on_queues.size
+      @orphaned_checked_time = Time.now.to_i
+      @orphaned_count = workers_on_queues.size - managed_worker_size
+    end
 
-      managed_worker_size = workers.fetch(queues, []).size
+    def managed_worker_size
+      all_known_queues.collect {|queue| workers.fetch(queue, []).size}.sum
+    end
+
+    def worker_delta_for(queues)
+      delta = config.fetch(queues, 0) - orphaned_count - managed_worker_size
 
       delta < 0 && managed_worker_size < delta.abs ? 0 - managed_worker_size : delta
     end
