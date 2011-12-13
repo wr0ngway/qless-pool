@@ -297,7 +297,17 @@ module Resque
     end
 
     def worker_delta_for(queues)
-      config.fetch(queues, 0) - workers.fetch(queues, []).size
+      machine_hostname = Socket.gethostname
+      workers_on_queues = Resque.workers.collect(&:to_s).find_all do |key|
+        hostname, pid, queue = key.split(':')
+        machine_hostname == hostname && queue == queues
+      end
+
+      delta = config.fetch(queues, 0) - workers_on_queues.size
+
+      managed_worker_size = workers.fetch(queues, []).size
+
+      delta < 0 && managed_worker_size < delta.abs ? 0 - managed_worker_size : delta
     end
 
     def pids_for(queues)
