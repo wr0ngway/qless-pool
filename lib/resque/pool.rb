@@ -270,8 +270,8 @@ module Resque
     def maintain_worker_count
       all_known_queues.each do |queues|
         delta = worker_delta_for(queues)
-        spawn_missing_workers_for(queues) if delta > 0
-        quit_excess_workers_for(queues)   if delta < 0
+        spawn_missing_workers_for(queues, delta) if delta > 0
+        quit_excess_workers_for(queues, delta.abs)   if delta < 0
       end
     end
 
@@ -283,14 +283,11 @@ module Resque
     # methods that operate on a single grouping of queues {{{
     # perhaps this means a class is waiting to be extracted
 
-    def spawn_missing_workers_for(queues)
-      worker_delta_for(queues).times do |nr|
-        spawn_worker!(queues)
-      end
+    def spawn_missing_workers_for(queues, delta)
+      delta.times { spawn_worker!(queues) }
     end
 
-    def quit_excess_workers_for(queues)
-      delta = -worker_delta_for(queues)
+    def quit_excess_workers_for(queues, delta)
       pids_for(queues)[0...delta].each do |pid|
         Process.kill("QUIT", pid)
       end
