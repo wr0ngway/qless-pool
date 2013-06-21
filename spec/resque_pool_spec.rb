@@ -1,4 +1,4 @@
-require 'spec/spec_helper'
+require 'spec_helper'
 
 RSpec.configure do |config|
   config.after {
@@ -58,6 +58,30 @@ describe Resque::Pool, "when loading the pool configuration from a Hash" do
     end
 
   end
+
+  context "when Rails.env is set" do
+    before(:each) do
+      module Rails; end
+      Rails.stub(:env).and_return('test')
+    end
+
+    it "should load the default values from the Hash" do
+      subject.config["foo"].should == 8
+    end
+
+    it "should merge the values for the correct RAILS_ENV" do
+      subject.config["bar"].should == 10
+      subject.config["foo,bar"].should == 12
+    end
+
+    it "should not load the values for the other environments" do
+      subject.config["foo,bar"].should == 12
+      subject.config["baz"].should be_nil
+    end
+
+    after(:all) { Object.send(:remove_const, :Rails) }
+  end
+
 
   context "when ENV['RESQUE_ENV'] is set" do
     before { ENV['RESQUE_ENV'] = 'development' }
@@ -128,6 +152,14 @@ describe Resque::Pool, "when loading the pool configuration from a file" do
       subject.config["bar"].should be_nil
       subject.config["foo,bar"].should be_nil
       subject.config["baz"].should be_nil
+    end
+  end
+
+  context "when a custom file is specified" do
+    before { ENV["RESQUE_POOL_CONFIG"] = 'spec/resque-pool-custom.yml.erb' }
+    subject { Resque::Pool.new(Resque::Pool.choose_config_file) }
+    it "should find the right file, and parse the ERB" do
+      subject.config["foo"].should == 2
     end
   end
 

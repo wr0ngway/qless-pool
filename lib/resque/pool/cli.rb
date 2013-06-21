@@ -1,10 +1,10 @@
 require 'trollop'
 require 'resque/pool'
+require 'fileutils'
 
 module Resque
   class Pool
     module CLI
-      extend Logging
       extend self
 
       def run
@@ -13,6 +13,7 @@ module Resque
         manage_pidfile opts[:pidfile]
         redirect opts
         setup_environment opts
+        set_pool_options opts
         start_pool
       end
 
@@ -30,12 +31,16 @@ Usage:
 where [options] are:
           EOS
           opt :config, "Alternate path to config file", :type => String, :short => "-c"
+          opt :appname, "Alternate appname",         :type => String,    :short => "-a"
           opt :daemon, "Run as a background daemon", :default => false,  :short => "-d"
           opt :stdout, "Redirect stdout to logfile", :type => String,    :short => '-o'
           opt :stderr, "Redirect stderr to logfile", :type => String,    :short => '-e'
           opt :nosync, "Don't sync logfiles on every write"
           opt :pidfile, "PID file location",         :type => String,    :short => "-p"
           opt :environment, "Set RAILS_ENV/RACK_ENV/RESQUE_ENV", :type => String, :short => "-E"
+          opt :term_graceful_wait, "On TERM signal, wait for workers to shut down gracefully"
+          opt :term_graceful,      "On TERM signal, shut down workers gracefully"
+          opt :term_immediate,     "On TERM signal, shut down workers immediately (default)"
         end
         if opts[:daemon]
           opts[:stdout]  ||= "log/resque-pool.stdout.log"
@@ -62,6 +67,8 @@ where [options] are:
           else
             File.delete pidfile
           end
+        else
+          FileUtils.mkdir_p File.dirname(pidfile)
         end
         File.open pidfile, "w" do |f|
           f.write pid
@@ -81,7 +88,7 @@ where [options] are:
         false
       rescue Errno::EPERM
         true
-      rescue ::Exception
+      rescue ::Exception => e
         $stderr.puts "While checking if PID #{old_pid} is running, unexpected #{e.class}: #{e}"
         true
       end
@@ -96,9 +103,22 @@ where [options] are:
         $stdout.sync = $stderr.sync = true unless opts[:nosync]
       end
 
+      # TODO: global variables are not the best way
+      def set_pool_options(opts)
+        if opts[:daemon]
+          Resque::Pool.handle_winch = true
+        end
+        if opts[:term_graceful_wait]
+          Resque::Pool.term_behavior = "graceful_worker_shutdown_and_wait"
+        elsif opts[:term_graceful]
+          Resque::Pool.term_behavior = "graceful_worker_shutdown"
+        end
+      end
+
       def setup_environment(opts)
+        Resque::Pool.app_name = opts[:appname]    if opts[:appname]
         ENV["RACK_ENV"] = ENV["RAILS_ENV"] = ENV["RESQUE_ENV"] = opts[:environment] if opts[:environment]
-        log "Resque Pool running in #{ENV["RAILS_ENV"] || "development"} environment"
+        Resque::Pool.log "Resque Pool running in #{ENV["RAILS_ENV"] || "development"} environment"
         ENV["RESQUE_POOL_CONFIG"] = opts[:config] if opts[:config]
       end
 

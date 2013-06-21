@@ -1,8 +1,10 @@
 # -*- encoding: utf-8 -*-
 require 'resque'
+require 'resque/worker'
 require 'resque/pool/version'
 require 'resque/pool/logging'
 require 'resque/pool/pooled_worker'
+require 'erb'
 require 'fcntl'
 require 'yaml'
 
@@ -14,12 +16,13 @@ module Resque
     CHUNK_SIZE = (16 * 1024)
 
     include Logging
+    extend  Logging
     attr_reader :config
     attr_reader :workers
 
     def initialize(config)
       init_config(config)
-      @workers = {}
+      @workers = Hash.new { |workers, queues| workers[queues] = {} }
       procline "(initialized)"
     end
 
@@ -49,7 +52,19 @@ module Resque
     # Config: class methods to start up the pool using the default config {{{
 
     @config_files = ["resque-pool.yml", "config/resque-pool.yml"]
-    class << self; attr_accessor :config_files; end
+    class << self; attr_accessor :config_files, :app_name; end
+
+    def self.app_name
+      @app_name ||= File.basename(Dir.pwd)
+    end
+
+    def self.handle_winch?
+      @handle_winch ||= false
+    end
+    def self.handle_winch=(bool)
+      @handle_winch = bool
+    end
+
     def self.choose_config_file
       if ENV["RESQUE_POOL_CONFIG"]
         ENV["RESQUE_POOL_CONFIG"]
@@ -84,7 +99,7 @@ module Resque
 
     def load_config
       if config_file
-        @config = YAML.load_file(config_file)
+        @config = YAML.load(ERB.new(IO.read(config_file)).result)
       else
         @config ||= {}
       end
@@ -95,6 +110,8 @@ module Resque
     def environment
       if defined? RAILS_ENV
         RAILS_ENV
+      elsif defined?(Rails) && Rails.respond_to?(:env)
+        Rails.env
       else
         ENV['RACK_ENV'] || ENV['RAILS_ENV'] || ENV['RESQUE_ENV']
       end
@@ -162,23 +179,48 @@ module Resque
         log "HUP: new children will inherit new logfiles"
         maintain_worker_count
       when :WINCH
-        log "WINCH: gracefully stopping all workers"
-        @config = {}
-        maintain_worker_count
+        if self.class.handle_winch?
+          log "WINCH: gracefully stopping all workers"
+          @config = {}
+          maintain_worker_count
+        end
       when :QUIT
-        log "QUIT: graceful shutdown, waiting for children"
-        signal_all_workers(:QUIT)
-        reap_all_workers(0) # will hang until all workers are shutdown
-        :break
+        graceful_worker_shutdown_and_wait!(signal)
       when :INT
-        log "INT: immediate shutdown (graceful worker shutdown)"
-        signal_all_workers(:QUIT)
-        :break
+        graceful_worker_shutdown!(signal)
       when :TERM
-        log "TERM: immediate shutdown (and immediate worker shutdown)"
-        signal_all_workers(:TERM)
-        :break
+        case self.class.term_behavior
+        when "graceful_worker_shutdown_and_wait"
+          graceful_worker_shutdown_and_wait!(signal)
+        when "graceful_worker_shutdown"
+          graceful_worker_shutdown!(signal)
+        else
+          shutdown_everything_now!(signal)
+        end
       end
+    end
+
+    class << self
+      attr_accessor :term_behavior
+    end
+
+    def graceful_worker_shutdown_and_wait!(signal)
+      log "#{signal}: graceful shutdown, waiting for children"
+      signal_all_workers(:QUIT)
+      reap_all_workers(0) # will hang until all workers are shutdown
+      :break
+    end
+
+    def graceful_worker_shutdown!(signal)
+      log "#{signal}: immediate shutdown (graceful worker shutdown)"
+      signal_all_workers(:QUIT)
+      :break
+    end
+
+    def shutdown_everything_now!(signal)
+      log "#{signal}: immediate shutdown (and immediate worker shutdown)"
+      signal_all_workers(:TERM)
+      :break
     end
 
     # }}}
@@ -237,15 +279,20 @@ module Resque
         loop do
           # -1, wait for any child process
           wpid, status = Process.waitpid2(-1, waitpid_flags)
-          wpid or break
-          worker = delete_worker(wpid)
-          # TODO: close any file descriptors connected to worker, if any
-          log "Reaped resque worker[#{status.pid}] (status: #{status.exitstatus}) queues: #{worker.queues.join(",")}"
+          break unless wpid
+
+          if worker = delete_worker(wpid)
+            log "Reaped resque worker[#{status.pid}] (status: #{status.exitstatus}) queues: #{worker.queues.join(",")}"
+          else
+            # this died before it could be killed, so it's not going to have any extra info
+            log "Tried to reap worker [#{status.pid}], but it had already died. (status: #{status.exitstatus})"
+          end
         end
       rescue Errno::ECHILD, QuitNowException
       end
     end
 
+    # TODO: close any file descriptors connected to worker, if any
     def delete_worker(pid)
       worker = nil
       workers.detect do |queues, pid_to_worker|
@@ -331,13 +378,14 @@ module Resque
         #self_pipe.each {|io| io.close }
         worker.work(ENV['INTERVAL'] || DEFAULT_WORKER_INTERVAL) # interval, will block
       end
-      workers[queues] ||= {}
       workers[queues][pid] = worker
     end
 
     def create_worker(queues)
       queues = queues.to_s.split(',')
-      worker = PooledWorker.new(*queues)
+      worker = ::Resque::Worker.new(*queues)
+      worker.term_timeout = ENV['RESQUE_TERM_TIMEOUT'] || 4.0
+      worker.term_child = ENV['TERM_CHILD']
       worker.verbose = ENV['LOGGING'] || ENV['VERBOSE']
       worker.very_verbose = ENV['VVERBOSE']
       worker

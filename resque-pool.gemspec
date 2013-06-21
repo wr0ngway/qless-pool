@@ -15,19 +15,24 @@ Gem::Specification.new do |s|
     saving memory (w/REE) and monitoring their uptime
   EOF
 
-  s.add_dependency "resque",  "~> 1.13"
+  s.add_dependency "resque",  "~> 1.24"
   s.add_dependency "trollop", "~> 1.16"
   s.add_dependency "rake"
-  s.add_development_dependency "rspec",    "~> 2.3.0"
-  s.add_development_dependency "cucumber", "~> 0.10.0"
-  s.add_development_dependency "aruba",    "~> 0.3.2"
-  s.add_development_dependency "SystemTimer" # to silence redis gem's warning
+  s.add_development_dependency "rspec",    "~> 2.10.0"
+  s.add_development_dependency "cucumber", "~> 1.2.0"
+  s.add_development_dependency "aruba",    "~> 0.4.11"
   s.add_development_dependency "bundler", "~> 1.0"
+  s.add_development_dependency "ronn"
 
-  # hidden files are automatically ignored by Dir.glob
-  ignore_patterns = %w[**/*.gem **/*.pid **/*.log pkg Gemfile.lock]
-  ignore_files    = ignore_patterns.inject([]) {|a,p| a + Dir[p] }
-  s.files         = Dir["**/*"] - ignore_files
+  # only in ruby 1.8
+  s.add_development_dependency "SystemTimer" if RUBY_VERSION =~ /^1\.8/
+
+  s.files         = %w( README.md Rakefile LICENSE.txt Changelog.md )
+  s.files         += Dir.glob("lib/**/*")
+  s.files         += Dir.glob("bin/**/*")
+  s.files         += Dir.glob("man/**/*")
+  s.files         += Dir.glob("features/**/*")
+  s.files         += Dir.glob("spec/**/*")
   s.test_files    = Dir.glob("{spec,features}/**/*.{rb,yml,feature}")
   s.executables   = 'resque-pool'
   s.require_paths = ["lib"]
