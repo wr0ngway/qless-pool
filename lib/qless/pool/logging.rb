@@ -1,4 +1,4 @@
-module Resque
+module Qless
   class Pool
     module Logging
       extend self
@@ -36,20 +36,20 @@ module Resque
 
       # Given a string, sets the procline ($0)
       # Procline is always in the format of:
-      #   resque-pool-master: STRING
+      #   qless-pool-master: STRING
       def procline(string)
-        $0 = "resque-pool-master#{app}: #{string}"
+        $0 = "qless-pool-master#{app}: #{string}"
       end
 
       # TODO: make this use an actual logger
       def log(message)
-        puts "resque-pool-manager#{app}[#{Process.pid}]: #{message}"
+        puts "qless-pool-manager#{app}[#{Process.pid}]: #{message}"
         #$stdout.fsync
       end
 
       # TODO: make this use an actual logger
       def log_worker(message)
-        puts "resque-pool-worker#{app}[#{Process.pid}]: #{message}"
+        puts "qless-pool-worker#{app}[#{Process.pid}]: #{message}"
         #$stdout.fsync
       end
 

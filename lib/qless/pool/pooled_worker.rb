@@ -1,6 +1,6 @@
-require 'resque/worker'
+require 'qless/worker'
 
-class Resque::Pool
+class Qless::Pool
   module PooledWorker
     def shutdown_with_pool
       shutdown_without_pool || Process.ppid == 1
@@ -16,6 +16,6 @@ class Resque::Pool
   end
 end
 
-Resque::Worker.class_eval do
-  include Resque::Pool::PooledWorker
+Qless::Worker.class_eval do
+  include Qless::Pool::PooledWorker
 end

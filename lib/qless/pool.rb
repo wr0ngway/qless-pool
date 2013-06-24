@@ -1,14 +1,14 @@
 # -*- encoding: utf-8 -*-
-require 'resque'
-require 'resque/worker'
-require 'resque/pool/version'
-require 'resque/pool/logging'
-require 'resque/pool/pooled_worker'
+require 'qless'
+require 'qless/worker'
+require 'qless/pool/version'
+require 'qless/pool/logging'
+require 'qless/pool/pooled_worker'
 require 'erb'
 require 'fcntl'
 require 'yaml'
 
-module Resque
+module Qless
   class Pool
     SIG_QUEUE_MAX_SIZE = 5
     DEFAULT_WORKER_INTERVAL = 5
@@ -26,6 +26,14 @@ module Resque
       procline "(initialized)"
     end
 
+    def self.qless_client
+      @qless_client ||= Qless::Client.new
+    end
+    
+    def self.qless_client=(client)
+      @qless_client = client
+    end
+        
     # Config: after_prefork {{{
 
     # The `after_prefork` hook will be run in workers if you are using the
@@ -51,7 +59,7 @@ module Resque
     # }}}
     # Config: class methods to start up the pool using the default config {{{
 
-    @config_files = ["resque-pool.yml", "config/resque-pool.yml"]
+    @config_files = ["qless-pool.yml", "config/qless-pool.yml"]
     class << self; attr_accessor :config_files, :app_name; end
 
     def self.app_name
@@ -66,8 +74,8 @@ module Resque
     end
 
     def self.choose_config_file
-      if ENV["RESQUE_POOL_CONFIG"]
-        ENV["RESQUE_POOL_CONFIG"]
+      if ENV["QLESS_POOL_CONFIG"]
+        ENV["QLESS_POOL_CONFIG"]
       else
         @config_files.detect { |f| File.exist?(f) }
       end
@@ -77,14 +85,14 @@ module Resque
       if GC.respond_to?(:copy_on_write_friendly=)
         GC.copy_on_write_friendly = true
       end
-      Resque::Pool.new(choose_config_file).start.join
+      Qless::Pool.new(choose_config_file).start.join
     end
 
     # }}}
     # Config: load config and config file {{{
 
     def config_file
-      @config_file || (!@config && ::Resque::Pool.choose_config_file)
+      @config_file || (!@config && ::Qless::Pool.choose_config_file)
     end
 
     def init_config(config)
@@ -108,12 +116,12 @@ module Resque
     end
 
     def environment
-      if defined? RAILS_ENV
-        RAILS_ENV
-      elsif defined?(Rails) && Rails.respond_to?(:env)
+      if defined?(Rails) && Rails.respond_to?(:env)
         Rails.env
+      elsif defined? RAILS_ENV
+        RAILS_ENV
       else
-        ENV['RACK_ENV'] || ENV['RAILS_ENV'] || ENV['RESQUE_ENV']
+        ENV['RACK_ENV'] || ENV['RAILS_ENV'] || ENV['QLESS_ENV']
       end
     end
 
@@ -282,7 +290,7 @@ module Resque
           break unless wpid
 
           if worker = delete_worker(wpid)
-            log "Reaped resque worker[#{status.pid}] (status: #{status.exitstatus}) queues: #{worker.queues.join(",")}"
+            log "Reaped qless worker[#{status.pid}] (status: #{status.exitstatus}) queues: #{worker.job_reserver.queues.collect(&:name).join(",")}"
           else
             # this died before it could be killed, so it's not going to have any extra info
             log "Tried to reap worker [#{status.pid}], but it had already died. (status: #{status.exitstatus})"
@@ -339,30 +347,30 @@ module Resque
         Process.kill("QUIT", pid)
       end
     end
-
-    def orphaned_count
-      if @orphaned_checked_time && @orphaned_checked_time > Time.now.to_i - 60
-        return @orphaned_count
-      end
-
+    
+    # use qless to get a number for currently running workers on
+    # a machine so we don't double up after a restart with long
+    # running jobs still active
+    def running_worker_count
+      # may want to do a zcard on ql:workers instead
+      count = 0
       machine_hostname = Socket.gethostname
-      workers_on_queues = Resque.workers.collect(&:to_s).find_all do |key|
-        hostname, pid, queue = key.split(':')
-        machine_hostname == hostname #&& queue == queues
+      worker_info = self.class.qless_client.workers.counts
+      worker_info.each do |worker|
+        hostname, pid = worker['name'].split('-')
+        count += 1 if machine_hostname == hostname
       end
-
-      @orphaned_checked_time = Time.now.to_i
-      @orphaned_count = workers_on_queues.size - managed_worker_size
+      count
     end
 
-    def managed_worker_size
-      all_known_queues.collect {|queue| workers.fetch(queue, []).size}.sum
+    def configured_worker_count
+      config.values.inject {|sum,x| sum + x }
     end
 
     def worker_delta_for(queues)
-      delta = config.fetch(queues, 0) - orphaned_count - managed_worker_size
-
-      delta < 0 && managed_worker_size < delta.abs ? 0 - managed_worker_size : delta
+      delta = config.fetch(queues, 0) - workers.fetch(queues, []).size
+      delta = 0 if delta > 0 && running_worker_count > configured_worker_count
+      delta
     end
 
     def pids_for(queues)
@@ -372,6 +380,10 @@ module Resque
     def spawn_worker!(queues)
       worker = create_worker(queues)
       pid = fork do
+        # This var gets cached, so need to clear it out in forks
+        # so that workers report the correct name to qless
+        Qless.instance_variable_set(:@worker_name, nil)
+        self.class.qless_client.redis.client.reconnect
         log_worker "Starting worker #{worker}"
         call_after_prefork!
         reset_sig_handlers!
@@ -382,13 +394,20 @@ module Resque
     end
 
     def create_worker(queues)
-      queues = queues.to_s.split(',')
-      worker = ::Resque::Worker.new(*queues)
-      worker.term_timeout = ENV['RESQUE_TERM_TIMEOUT'] || 4.0
-      worker.term_child = ENV['TERM_CHILD']
-      worker.verbose = ENV['LOGGING'] || ENV['VERBOSE']
-      worker.very_verbose = ENV['VVERBOSE']
-      worker
+      queues = queues.to_s.split(',').map { |q| self.class.qless_client.queues[q.strip] }
+      if queues.none?
+        raise "No queues provided"
+      end
+
+      reserver = Qless::JobReservers.const_get(ENV.fetch('JOB_RESERVER', 'Ordered')).new(queues)
+
+      options = {}
+      options[:term_timeout] = ENV['TERM_TIMEOUT'] || 4.0
+      options[:verbose] = !!ENV['VERBOSE']
+      options[:very_verbose] = !!ENV['VVERBOSE']
+      options[:run_as_single_process] = !!ENV['RUN_AS_SINGLE_PROCESS']
+
+      Qless::Worker.new(reserver, options)
     end
 
     # }}}

@@ -2,9 +2,9 @@ roles = %w[solo util]
 if roles.include?(node[:instance_role])
   node[:applications].each do |app, data|
 
-    pidfile = "/data/#{app}/current/tmp/pids/#{app}_resque.pid"
+    pidfile = "/data/#{app}/current/tmp/pids/#{app}_qless.pid"
 
-    template "/etc/monit.d/#{app}_resque.monitrc" do
+    template "/etc/monit.d/#{app}_qless.monitrc" do
       owner 'root'
       group 'root'
       mode 0644
@@ -16,7 +16,7 @@ if roles.include?(node[:instance_role])
       })
     end
 
-    template "/etc/init.d/#{app}_resque" do
+    template "/etc/init.d/#{app}_qless" do
       owner 'root'
       group 'root'
       mode 0744
@@ -27,18 +27,18 @@ if roles.include?(node[:instance_role])
       })
     end
 
-    execute "enable-resque" do
-      command "rc-update add #{app}_resque default"
+    execute "enable-qless" do
+      command "rc-update add #{app}_qless default"
       action :run
-      not_if "rc-update show | grep -q '^ *#{app}_resque |.*default'"
+      not_if "rc-update show | grep -q '^ *#{app}_qless |.*default'"
     end
 
-    execute "start-resque" do
-      command %Q{/etc/init.d/#{app}_resque start}
+    execute "start-qless" do
+      command %Q{/etc/init.d/#{app}_qless start}
       creates pidfile
     end
 
-    execute "ensure-resque-is-setup-with-monit" do
+    execute "ensure-qless-is-setup-with-monit" do
       command %Q{monit reload}
     end
 

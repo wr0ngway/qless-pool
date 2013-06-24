@@ -1,53 +1,53 @@
-resque-pool(1) -- resque worker pool management
+qless-pool(1) -- qless worker pool management
 ================================================
 
 ## SYNOPSIS
 
-`resque-pool` [options]
+`qless-pool` [options]
 
 ## DESCRIPTION
 
-**Resque-pool** is the best way to manage a group (pool) of resque workers.
+**Qless-pool** is the best way to manage a group (pool) of qless workers.
 
-When resque-pool(1) is daemonized the `stdout` and `stderr` output streams
-are redirected to `resque-pool.stdxxx.log` log files in the `log` directory.
-Additionally the PID file defaults to `resque-pool.pid` in the `tmp/pids`
+When qless-pool(1) is daemonized the `stdout` and `stderr` output streams
+are redirected to `qless-pool.stdxxx.log` log files in the `log` directory.
+Additionally the PID file defaults to `qless-pool.pid` in the `tmp/pids`
 directory.
 
 ## OPTIONS
 
   * `-c, --config` <file>:
     Uses the configuration specified in the <file> provided instead of
-    searching in the current and `config` directories for `resque-pool.yml`.
+    searching in the current and `config` directories for `qless-pool.yml`.
 
   * `-a, --appname` <name>:
     Specifies the app name to be used for logging and procline.  If not
     specified, this defaults to the current working directory.
 
   * `-d, --daemon`:
-    Runs `resque-pool` in the background as a daemon process. This will
+    Runs `qless-pool` in the background as a daemon process. This will
     redirect `stdout` and `stderr` to log files and write a PID file.
 
   * `-o, --stdout` <file>:
     Writes the normal log output to <file> instead of printing to the
     terminal. When running as a daemon this defaults to the path
-    `log/resque-pool.stdout.log`.
+    `log/qless-pool.stdout.log`.
 
   * `-e, --stderr` <file>:
     Writes the standard error output to <file> instead of printing to the
     terminal. When running as a daemon this defaults to the path
-    `log/resque-pool.stderr.log`.
+    `log/qless-pool.stderr.log`.
 
   * `--nosync`
     Allows writes to `stdout` and `stderr` to be buffered.
 
   * `-p, --pidfile` <file>:
     Writes the PID to the <file>. When running as a daemon this defaults
-    to `tmp/pids/resque-pool.pid`.
+    to `tmp/pids/qless-pool.pid`.
 
   * `-E, --environment` <name>:
     Specifies the environment <name> to be set for `RAILS_ENV`, `RACK_ENV`
-    and `RESQUE_ENV` which will be passed on to the pooled resque workers.
+    and `QLESS_ENV` which will be passed on to the pooled qless workers.
 
   * `--term-graceful-wait`:
     Configure TERM signal handling so the master will gracefully request worker
@@ -67,7 +67,7 @@ directory.
 ## HISTORY
 
   * `v0.3.0`:
-    Support for ruby 1.9, resque 1.20.<br>
+    Support for ruby 1.9, qless 1.20.<br>
     Added appname for logging.<br>
     Minor bugfixes.
 
@@ -77,7 +77,7 @@ directory.
     Fixed `-c, --config` option.
 
   * `v0.1.0`:
-    `resque-pool` command line interface added
+    `qless-pool` command line interface added
 
 ## AUTHOR
 
@@ -89,4 +89,4 @@ Copyright (C) 2010 by Nicholas Evans <nick@ekenosen.net>, et al.
 
 ## SEE ALSO
 
-resque-pool.yml(5)
+qless-pool.yml(5)

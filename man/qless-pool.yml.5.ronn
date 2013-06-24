@@ -1,17 +1,17 @@
-resque-pool.yml(5) -- resque-pool pool configuration
+qless-pool.yml(5) -- qless-pool pool configuration
 =====================================================
 
 ## SYNOPSIS
 
-`resque-pool.yml`<br>
-`config/resque-pool.yml`
+`qless-pool.yml`<br>
+`config/qless-pool.yml`
 
 ## DESCRIPTION
 
-resque-pool(1) reads pool configuration data from `resque-pool.yml` (or
+qless-pool(1) reads pool configuration data from `qless-pool.yml` (or
 the file specified with `-c` on the command line). The file contains queue-worker-count pairs, one per line. The configuration file supports both 
 using root level defaults as well as environment specific overrides 
-(`RACK_ENV`, `RAILS_ENV`, and `RESQUE_ENV` environment variables can be used 
+(`RACK_ENV`, `RAILS_ENV`, and `QLESS_ENV` environment variables can be used 
 to determine environment).
 
 An example configuration
@@ -38,4 +38,4 @@ Copyright (C) 2010 by Nicholas Evans <nick@ekenosen.net>, et al.
 
 ## SEE ALSO
 
-resque-pool(1)
+qless-pool(1)

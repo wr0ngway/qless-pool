@@ -29,5 +29,5 @@ After do
     Process.kill(9, @pid_from_pidfile) if @pid_from_pidfile
   rescue Errno::ESRCH
   end
-  #`pkill -9 resque-pool`
+  #`pkill -9 qless-pool`
 end

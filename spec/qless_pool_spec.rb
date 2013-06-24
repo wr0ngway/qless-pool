@@ -5,15 +5,15 @@ RSpec.configure do |config|
     Object.send(:remove_const, :RAILS_ENV) if defined? RAILS_ENV
     ENV.delete 'RACK_ENV'
     ENV.delete 'RAILS_ENV'
-    ENV.delete 'RESQUE_ENV'
+    ENV.delete 'QLESS_ENV'
   }
 end
 
-describe Resque::Pool, "when loading a simple pool configuration" do
+describe Qless::Pool, "when loading a simple pool configuration" do
   let(:config) do
     { 'foo' => 1, 'bar' => 2, 'foo,bar' => 3, 'bar,foo' => 4, }
   end
-  subject { Resque::Pool.new(config) }
+  subject { Qless::Pool.new(config) }
 
   context "when ENV['RACK_ENV'] is set" do
     before { ENV['RACK_ENV'] = 'development' }
@@ -28,7 +28,7 @@ describe Resque::Pool, "when loading a simple pool configuration" do
 
 end
 
-describe Resque::Pool, "when loading the pool configuration from a Hash" do
+describe Qless::Pool, "when loading the pool configuration from a Hash" do
 
   let(:config) do
     {
@@ -38,7 +38,7 @@ describe Resque::Pool, "when loading the pool configuration from a Hash" do
     }
   end
 
-  subject { Resque::Pool.new(config) }
+  subject { Qless::Pool.new(config) }
 
   context "when RAILS_ENV is set" do
     before { RAILS_ENV = "test" }
@@ -83,8 +83,8 @@ describe Resque::Pool, "when loading the pool configuration from a Hash" do
   end
 
 
-  context "when ENV['RESQUE_ENV'] is set" do
-    before { ENV['RESQUE_ENV'] = 'development' }
+  context "when ENV['QLESS_ENV'] is set" do
+    before { ENV['QLESS_ENV'] = 'development' }
     it "should load the config for that environment" do
       subject.config["foo"].should == 8
       subject.config["foo,bar"].should == 16
@@ -104,16 +104,16 @@ describe Resque::Pool, "when loading the pool configuration from a Hash" do
 
 end
 
-describe Resque::Pool, "given no configuration" do
-  subject { Resque::Pool.new(nil) }
+describe Qless::Pool, "given no configuration" do
+  subject { Qless::Pool.new(nil) }
   it "should have no worker types" do
     subject.config.should == {}
   end
 end
 
-describe Resque::Pool, "when loading the pool configuration from a file" do
+describe Qless::Pool, "when loading the pool configuration from a file" do
 
-  subject { Resque::Pool.new("spec/resque-pool.yml") }
+  subject { Qless::Pool.new("spec/qless-pool.yml") }
 
   context "when RAILS_ENV is set" do
     before { RAILS_ENV = "test" }
@@ -156,8 +156,8 @@ describe Resque::Pool, "when loading the pool configuration from a file" do
   end
 
   context "when a custom file is specified" do
-    before { ENV["RESQUE_POOL_CONFIG"] = 'spec/resque-pool-custom.yml.erb' }
-    subject { Resque::Pool.new(Resque::Pool.choose_config_file) }
+    before { ENV["QLESS_POOL_CONFIG"] = 'spec/qless-pool-custom.yml.erb' }
+    subject { Qless::Pool.new(Qless::Pool.choose_config_file) }
     it "should find the right file, and parse the ERB" do
       subject.config["foo"].should == 2
     end

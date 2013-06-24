@@ -3,13 +3,13 @@ rails_root = ENV['RAILS_ROOT'] || "YOUR-APP-PATH"
 
 God.watch do |w|
   w.dir      = "#{rails_root}"
-  w.name     = "resque-pool"
-  w.group    = 'resque'
+  w.name     = "qless-pool"
+  w.group    = 'qless'
   w.interval = 30.seconds
   w.env      = { "RAILS_ENV" => rails_env }
-  w.start    = "bundle exec resque-pool -d -o #{rails_root}/log/resque-pool.stdout -e #{rails_root}/log/resque-pool.stderr -p #{rails_root}/tmp/pids/resque-pool.pid"
+  w.start    = "bundle exec qless-pool -d -o #{rails_root}/log/qless-pool.stdout -e #{rails_root}/log/qless-pool.stderr -p #{rails_root}/tmp/pids/qless-pool.pid"
 
-  w.pid_file = "#{rails_root}/tmp/pids/resque-pool.pid"
+  w.pid_file = "#{rails_root}/tmp/pids/qless-pool.pid"
   w.behavior(:clean_pid_file)
 
   # determine the state on startup

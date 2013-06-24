@@ -1,8 +1,8 @@
 require 'trollop'
-require 'resque/pool'
+require 'qless/pool'
 require 'fileutils'
 
-module Resque
+module Qless
   class Pool
     module CLI
       extend self
@@ -19,15 +19,15 @@ module Resque
 
       def parse_options
         opts = Trollop::options do
-          version "resque-pool #{VERSION} (c) nicholas a. evans"
+          version "qless-pool #{VERSION} (c) nicholas a. evans"
           banner <<-EOS
-resque-pool is the best way to manage a group (pool) of resque workers
+qless-pool is the best way to manage a group (pool) of qless workers
 
-When daemonized, stdout and stderr default to resque-pool.stdxxx.log files in
-the log directory and pidfile defaults to resque-pool.pid in the current dir.
+When daemonized, stdout and stderr default to qless-pool.stdxxx.log files in
+the log directory and pidfile defaults to qless-pool.pid in the current dir.
 
 Usage:
-   resque-pool [options]
+   qless-pool [options]
 where [options] are:
           EOS
           opt :config, "Alternate path to config file", :type => String, :short => "-c"
@@ -37,15 +37,15 @@ where [options] are:
           opt :stderr, "Redirect stderr to logfile", :type => String,    :short => '-e'
           opt :nosync, "Don't sync logfiles on every write"
           opt :pidfile, "PID file location",         :type => String,    :short => "-p"
-          opt :environment, "Set RAILS_ENV/RACK_ENV/RESQUE_ENV", :type => String, :short => "-E"
+          opt :environment, "Set RAILS_ENV/RACK_ENV/QLESS_ENV", :type => String, :short => "-E"
           opt :term_graceful_wait, "On TERM signal, wait for workers to shut down gracefully"
           opt :term_graceful,      "On TERM signal, shut down workers gracefully"
           opt :term_immediate,     "On TERM signal, shut down workers immediately (default)"
         end
         if opts[:daemon]
-          opts[:stdout]  ||= "log/resque-pool.stdout.log"
-          opts[:stderr]  ||= "log/resque-pool.stderr.log"
-          opts[:pidfile] ||= "tmp/pids/resque-pool.pid"
+          opts[:stdout]  ||= "log/qless-pool.stdout.log"
+          opts[:stderr]  ||= "log/qless-pool.stderr.log"
+          opts[:pidfile] ||= "tmp/pids/qless-pool.pid"
         end
         opts
       end
@@ -95,7 +95,7 @@ where [options] are:
 
       def redirect(opts)
         $stdin.reopen  '/dev/null'        if opts[:daemon]
-        # need to reopen as File, or else Resque::Pool::Logging.reopen_logs! won't work
+        # need to reopen as File, or else Qless::Pool::Logging.reopen_logs! won't work
         out = File.new(opts[:stdout], "a") if opts[:stdout] && !opts[:stdout].empty?
         err = File.new(opts[:stderr], "a") if opts[:stderr] && !opts[:stderr].empty?
         $stdout.reopen out if out
@@ -106,28 +106,28 @@ where [options] are:
       # TODO: global variables are not the best way
       def set_pool_options(opts)
         if opts[:daemon]
-          Resque::Pool.handle_winch = true
+          Qless::Pool.handle_winch = true
         end
         if opts[:term_graceful_wait]
-          Resque::Pool.term_behavior = "graceful_worker_shutdown_and_wait"
+          Qless::Pool.term_behavior = "graceful_worker_shutdown_and_wait"
         elsif opts[:term_graceful]
-          Resque::Pool.term_behavior = "graceful_worker_shutdown"
+          Qless::Pool.term_behavior = "graceful_worker_shutdown"
         end
       end
 
       def setup_environment(opts)
-        Resque::Pool.app_name = opts[:appname]    if opts[:appname]
-        ENV["RACK_ENV"] = ENV["RAILS_ENV"] = ENV["RESQUE_ENV"] = opts[:environment] if opts[:environment]
-        Resque::Pool.log "Resque Pool running in #{ENV["RAILS_ENV"] || "development"} environment"
-        ENV["RESQUE_POOL_CONFIG"] = opts[:config] if opts[:config]
+        Qless::Pool.app_name = opts[:appname]    if opts[:appname]
+        ENV["RACK_ENV"] = ENV["RAILS_ENV"] = ENV["QLESS_ENV"] = opts[:environment] if opts[:environment]
+        Qless::Pool.log "Qless Pool running in #{ENV["RAILS_ENV"] || "development"} environment"
+        ENV["QLESS_POOL_CONFIG"] = opts[:config] if opts[:config]
       end
 
       def start_pool
         require 'rake'
-        require 'resque/pool/tasks'
+        require 'qless/pool/tasks'
         Rake.application.init
         Rake.application.load_rakefile
-        Rake.application["resque:pool"].invoke
+        Rake.application["qless:pool"].invoke
       end
 
     end
