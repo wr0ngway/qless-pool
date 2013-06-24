@@ -296,6 +296,8 @@ module Qless
             log "Tried to reap worker [#{status.pid}], but it had already died. (status: #{status.exitstatus})"
           end
         end
+      rescue Errno::EINTR
+        retry
       rescue Errno::ECHILD, QuitNowException
       end
     end
@@ -388,7 +390,12 @@ module Qless
         call_after_prefork!
         reset_sig_handlers!
         #self_pipe.each {|io| io.close }
-        worker.work(ENV['INTERVAL'] || DEFAULT_WORKER_INTERVAL) # interval, will block
+        begin
+          worker.work(ENV['INTERVAL'] || DEFAULT_WORKER_INTERVAL) # interval, will block
+        rescue Errno::EINTR
+          log "Caught interrupted system call Errno::EINTR. Retrying."
+          retry
+        end
       end
       workers[queues][pid] = worker
     end
