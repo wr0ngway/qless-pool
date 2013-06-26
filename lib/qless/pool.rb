@@ -34,6 +34,14 @@ module Qless
       @qless_client = client
     end
         
+    def self.qless_reserver(queues)
+      @qless_reserver ||= Qless::JobReservers.const_get(ENV.fetch('JOB_RESERVER', 'Ordered'))
+    end
+    
+    def self.qless_reserver=(reserver_class)
+      @qless_reserver = reserver_class
+    end
+        
     # Config: after_prefork {{{
 
     # The `after_prefork` hook will be run in workers if you are using the
@@ -406,7 +414,7 @@ module Qless
         raise "No queues provided"
       end
 
-      reserver = Qless::JobReservers.const_get(ENV.fetch('JOB_RESERVER', 'Ordered')).new(queues)
+      reserver = self.class.qless_reserver.new(queues)
 
       options = {}
       options[:term_timeout] = ENV['TERM_TIMEOUT'] || 4.0
