@@ -4,6 +4,7 @@ require 'qless/worker'
 require 'qless/pool/version'
 require 'qless/pool/logging'
 require 'qless/pool/pooled_worker'
+require 'qless/pool/pool_factory'
 require 'erb'
 require 'fcntl'
 require 'yaml'
@@ -26,22 +27,18 @@ module Qless
       procline "(initialized)"
     end
 
-    def self.qless_client
-      @qless_client ||= Qless::Client.new
+    def self.pool_factory
+      @pool_factory ||= Qless::PoolFactory.new
     end
     
-    def self.qless_client=(client)
-      @qless_client = client
-    end
-        
-    def self.qless_reserver(queues)
-      @qless_reserver ||= Qless::JobReservers.const_get(ENV.fetch('JOB_RESERVER', 'Ordered'))
+    def pool_factory
+      self.class.pool_factory
     end
     
-    def self.qless_reserver=(reserver_class)
-      @qless_reserver = reserver_class
+    def self.pool_factory=(factory)
+      @pool_factory = factory
     end
-        
+    
     # Config: after_prefork {{{
 
     # The `after_prefork` hook will be run in workers if you are using the
@@ -365,7 +362,7 @@ module Qless
       # may want to do a zcard on ql:workers instead
       count = 0
       machine_hostname = Socket.gethostname
-      worker_info = self.class.qless_client.workers.counts
+      worker_info = pool_factory.client.workers.counts
       worker_info.each do |worker|
         hostname, pid = worker['name'].split('-')
         count += 1 if machine_hostname == hostname
@@ -393,7 +390,7 @@ module Qless
         # This var gets cached, so need to clear it out in forks
         # so that workers report the correct name to qless
         Qless.instance_variable_set(:@worker_name, nil)
-        self.class.qless_client.redis.client.reconnect
+        pool_factory.client.redis.client.reconnect
         log_worker "Starting worker #{worker}"
         call_after_prefork!
         reset_sig_handlers!
@@ -409,20 +406,7 @@ module Qless
     end
 
     def create_worker(queues)
-      queues = queues.to_s.split(',').map { |q| self.class.qless_client.queues[q.strip] }
-      if queues.none?
-        raise "No queues provided"
-      end
-
-      reserver = self.class.qless_reserver.new(queues)
-
-      options = {}
-      options[:term_timeout] = ENV['TERM_TIMEOUT'] || 4.0
-      options[:verbose] = !!ENV['VERBOSE']
-      options[:very_verbose] = !!ENV['VVERBOSE']
-      options[:run_as_single_process] = !!ENV['RUN_AS_SINGLE_PROCESS']
-
-      Qless::Worker.new(reserver, options)
+      pool_factory.worker(queues)
     end
 
     # }}}
