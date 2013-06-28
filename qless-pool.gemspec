@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
   # only in ruby 1.8
   s.add_development_dependency "SystemTimer" if RUBY_VERSION =~ /^1\.8/
 
-  s.files         = %w( README.md Rakefile LICENSE.txt Changelog.md )
+  s.files         = %w( README.md Rakefile LICENSE.txt CHANGELOG)
   s.files         += Dir.glob("lib/**/*")
   s.files         += Dir.glob("bin/**/*")
   s.files         += Dir.glob("man/**/*")
