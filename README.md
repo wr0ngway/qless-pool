@@ -1,8 +1,7 @@
 Qless Pool
 ===========
 
-[![Build Status](https://secure.travis-ci.org/backupify/qless-pool.png)](http://travis-ci.org/backupify/qless-pool)
-[![Dependency Status](https://gemnasium.com/backupify/qless-pool.png)](https://gemnasium.com/backupify/qless-pool)
+[![Build Status](https://secure.travis-ci.org/wr0ngway/qless-pool.png)](http://travis-ci.org/wr0ngway/qless-pool)
 
 Qless pool is a simple library for managing a pool of
 [qless](http://github.com/seomoz/qless) workers.  Given a a config file, it
@@ -26,7 +25,7 @@ Upgrading?
 -----------
 
 See
-[Changelog.md](https://github.com/backupify/qless-pool/blob/master/Changelog.md)
+[Changelog.md](https://github.com/wr0ngway/qless-pool/blob/master/Changelog.md)
 in case there are important or helpful changes.
 
 How to use
@@ -147,7 +146,7 @@ with the `--config` command line option.
 TODO
 -----
 
-See [the TODO list](https://github.com/backupify/qless-pool/issues) at github issues.
+See [the TODO list](https://github.com/wr0ngway/qless-pool/issues) at github issues.
 
 Contributors
 -------------
