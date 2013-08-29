@@ -396,7 +396,7 @@ module Qless
         reset_sig_handlers!
         #self_pipe.each {|io| io.close }
         begin
-          worker.work(ENV['INTERVAL'] || DEFAULT_WORKER_INTERVAL) # interval, will block
+          worker.work((ENV['INTERVAL'] || DEFAULT_WORKER_INTERVAL).to_i) # interval, will block
         rescue Errno::EINTR
           log "Caught interrupted system call Errno::EINTR. Retrying."
           retry
