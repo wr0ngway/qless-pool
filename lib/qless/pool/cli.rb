@@ -117,8 +117,9 @@ where [options] are:
 
       def setup_environment(opts)
         Qless::Pool.app_name = opts[:appname]    if opts[:appname]
+        ENV["RAILS_ENV"] ||= 'development'
         ENV["RACK_ENV"] = ENV["RAILS_ENV"] = ENV["QLESS_ENV"] = opts[:environment] if opts[:environment]
-        Qless::Pool.log "Qless Pool running in #{ENV["RAILS_ENV"] || "development"} environment"
+        Qless::Pool.log "Qless Pool running in #{ENV["RAILS_ENV"]} environment"
         ENV["QLESS_POOL_CONFIG"] = opts[:config] if opts[:config]
       end
 
