@@ -11,7 +11,6 @@ require 'yaml'
 module Qless
   class Pool
     SIG_QUEUE_MAX_SIZE = 5
-    DEFAULT_WORKER_INTERVAL = 5
     QUEUE_SIGS = [ :QUIT, :INT, :TERM, :USR1, :USR2, :CONT, :HUP, :WINCH, ]
     CHUNK_SIZE = (16 * 1024)
 
@@ -395,7 +394,7 @@ module Qless
         reset_sig_handlers!
         #self_pipe.each {|io| io.close }
         begin
-          worker.work((ENV['INTERVAL'] || DEFAULT_WORKER_INTERVAL).to_i) # interval, will block
+          worker.run
         rescue Errno::EINTR
           log "Caught interrupted system call Errno::EINTR. Retrying."
           retry

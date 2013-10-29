@@ -6,10 +6,10 @@ module Qless
 
       def initialize(options={})
         @options = {
-            :term_timeout => ENV['TERM_TIMEOUT'] || 4.0,
-            :verbose => !!ENV['VERBOSE'],
-            :very_verbose => !!ENV['VVERBOSE'],
-           :run_as_single_process => !!ENV['RUN_AS_SINGLE_PROCESS']
+            :interval => (ENV['INTERVAL'] || 5).to_i,
+            :max_startup_interval => (ENV['MAX_STARTUP_INTERVAL'] || 10.0).to_f,
+            :num_workers => (ENV['NUM_WORKERS'] || 1).to_i,
+            :log_level => Logger::WARN
         }.merge(options)
       end
       
