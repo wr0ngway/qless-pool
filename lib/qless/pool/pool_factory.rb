@@ -1,6 +1,9 @@
+require 'qless/job_reservers/ordered'
+require 'qless/worker'
+
 module Qless
     class PoolFactory
-      
+
       def initialize(options={})
         @options = {
             :term_timeout => ENV['TERM_TIMEOUT'] || 4.0,
@@ -26,6 +29,20 @@ module Qless
         @reserver_class = reserver_class
       end
 
+      def worker_class
+        @worker_class ||= begin
+          if defined?(Qless::Workers::ForkingWorker)
+            Qless::Workers::ForkingWorker
+          else
+            Qless::Worker
+          end
+        end
+      end
+
+      def worker_class=(worker_class)
+        @worker_class = worker_class
+      end
+
       def reserver(queues)
         reserver_class.new(queues)
       end
@@ -36,7 +53,7 @@ module Qless
           raise "No queues provided"
         end
   
-        Qless::Worker.new(reserver(queues), @options)
+        worker_class.new(reserver(queues), @options)
       end
             
     end
