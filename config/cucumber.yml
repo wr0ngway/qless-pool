@@ -1,3 +1,0 @@
-default: --format pretty   --strict --require features --tags ~@wip --tags ~@pending
-rake:    --format progress --strict --require features --tags ~@wip --tags ~@pending
-
